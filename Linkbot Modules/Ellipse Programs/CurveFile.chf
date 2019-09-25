@@ -1,0 +1,389 @@
+/* File: CurveFile.chf 
+   File containing contents that will allow a Linkbot to drive in calculated circles 
+   Created by: Jonathan Estrada*/
+
+
+int driveCircle(CLinkbotI &robot, double r, double speed1); // Function prototype: Required for this case
+/* Example: driveCircle(bot1, 8, 90); bot1 goes in a circle with a radius of 8 inches with the innermost
+wheel at 90 DEGREES PER SECOND. A warning will pop up if speed is too high. Just reinput the speed */
+
+int driveCircleNB(CLinkbotI &robot, double r, double speed1);
+// Same as above, except non-blocked
+
+int driveConcentricLeft(CLinkbotI &robot1, CLinkbotI &robot2, double r, double gap, double speed1);
+/* driveConcentricLeft(bot1, bot2, 8, 2, 50); bot1 is on the inside and bot2 is on the outside. 
+bot1 and bot2 travel in a concenctric circle with a radius of 8 (TO inner wheel), a gap of 2 inches
+between the bots, and an inner wheel speed of 50) */
+
+int driveConcentricRight(CLinkbotI &robot1, CLinkbotI &robot2, double r, double gap, double speed1);
+/* Same as above, except the robots make a circle turning right */
+
+int quarterCircleLeft(CLinkbotI &robot, double r, double speed1);
+/* Same as above functions, except bot only goes a quarter circle */
+
+int quarterCircleRight(CLinkbotI &robot, double r, double speed1);
+/* Same as above, going right */
+
+int degreeCircleLeft(CLinkbotI &robot, double r, double speed1, double d);
+/* drivedegreeCircleRight(bot1, 6, 80, 270); robot goes in a circle that has a radius of 6 inches
+with the inner wheel going at 80 degrees per second. It only travels 270 degrees of the circle, however */
+
+int degreeCircleRight(CLinkbotI &robot, double r, double speed1, double d);
+/* Same as above, except going right */
+
+int degreeCircleLeftNB(CLinkbotI &robot, double r, double speed1, double d);
+/* Non-blocked */
+
+int degreeCircleRightNB(CLinkbotI &robot, double r, double speed1, double d);
+/* Non-blocked */
+    
+// Creates function driveCircle
+int driveCircle(CLinkbotI &robot, double r, double speed1) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Circumference of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305;   // Number of inches in a degree for a Linkbot wheel whose radius = 1.75
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert resulting values to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    
+    /* Since speed2 is dependent speed1 (which is user-inputted), the formulas above could result in a speed2 that is
+       higher than what the Linkbot is capable of (240 degrees per second). Thus, we use the while statement below to
+       prevent the program from running further by asking the user to input a speed low enough for the ratio between
+       the two wheels to be correct. */
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;    // Equation is a direct proportion: degreesI/speed1 = degreesO/speed2
+    }
+    
+    robot.setJointSpeeds(speed1, NaN, speed2);  // Apply the values generated from the above formulas
+    robot.move(degreesI, NaN, -degreesO);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+    
+// Creates function driveCircleNB
+int driveCircleNB(CLinkbotI &robot, double r, double speed1) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305;
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    
+    robot.setJointSpeeds(speed1, NaN, speed2);
+    robot.moveNB(degreesI, NaN, -degreesO);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+
+// Creates function driveConcentric 
+int driveConcentricLeft(CLinkbotI &robot1, CLinkbotI &robot2, double r, double gap, double speed1) {
+
+    double radius = 1.75;   // Of wheel
+    double trackwidth = 3.69;
+    double C1, C2, C3, C4;          // Of circle the robot will be driving in
+    double degreesI, degreesI2, degreesO, degreesO2;
+    double speed2, speed3, speed4;
+    double degreeConversion = 0.0305;       // Constant used to convert degrees into inches or vice versa
+    double gap = 0.5;   // The gap taken into account between the two linkbots
+    double maxSpeed;    // Max speed that innermost wheel can have in reference to outermost wheel
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    C3 = (2*M_PI) * (r + trackwidth + gap);          // Inner wheel Outer Linkbot
+    C4 = (2*M_PI) * (r + 2*trackwidth + gap);       // Circumference of outermost wheel of outer linkbot
+
+    degreesI = C1/degreeConversion;                 // Convert to degrees
+    degreesO = C2/degreeConversion;
+    degreesI2 = C3/degreeConversion;
+    degreesO2 = C4/degreeConversion;
+
+    // Equations below utilize multiple speed ratios (3 Curve Theorems in play)
+    speed2 = (degreesO * speed1) / degreesI;        // speed1/speed2 = degreesI/degreesO 
+    speed3 = (degreesI2 * speed2) / degreesO;       // speed2/speed3 = degreesO/degreesI2
+    speed4 = (degreesO2 * speed3) / degreesI2;      // speed3/speed4 = degreesI2/degreesO2
+    maxSpeed = 240 * (speed1/speed4);               // Calculate max possible speed for innermost wheel
+
+    /* When inputting speed1, the above calculation may set speed2 to above 240, which is not permitted. 
+       Therefore, a while loop forces the user to enter a lower number. */
+    while (speed4 > 240) {
+        printf("WARNING: At %lf degrees/sec, the speed of joint3 is %lf degrees/sec, above the limit of 240 degrees/sec.\n", speed1, speed4);
+        printf("Please enter a speed lower than %lf degrees/sec:\n", maxSpeed);
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;    // Equation: degreesI/speed1 = degreesO/speed2
+        speed3 = (degreesI2 * speed2) / degreesO;
+        speed4 = (degreesO2 * speed3) / degreesI2;
+        maxSpeed = 240 * (speed1/speed4);           
+        /* Above statement is derived from the ratio of speed 1 to speed 4 equaling that of
+           the max of the innermost wheel to 240. speed1/speed4 = maxSpeed/240 */
+    }
+
+    printf("\nSpeed1: %lf\n", speed1);  // For human reference
+    printf("Speed2: %lf\n", speed2);
+    printf("Speed3: %lf\n", speed3);
+    printf("Speed4: %lf\n", speed4);
+
+    robot1.setJointSpeeds(speed1, NaN, speed2);
+    robot2.setJointSpeeds(speed3, NaN, speed4);
+    robot1.moveNB(degreesI, NaN, -degreesO);       // Use ratio to find degrees so that both will stop at the same time
+    robot2.move(degreesI2, NaN, -degreesO2);
+    return 0;
+}
+
+int driveConcentricRight(CLinkbotI &robot2, CLinkbotI &robot1, double r, double gap, double speed1) {
+
+    double radius = 1.75;   // Of wheel
+    double trackwidth = 3.69;
+    double C1, C2, C3, C4;          // Of circle the robot will be driving in
+    double degreesI, degreesI2, degreesO, degreesO2;
+    double speed2, speed3, speed4;
+    double degreeConversion = 0.0305;       // Constant used to convert degrees into inches or vice versa
+    double gap = 0.5;   // The gap taken into account between the two linkbots
+    double maxSpeed;    // Max speed that innermost wheel can have in reference to outermost wheel
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    C3 = (2*M_PI) * (r + trackwidth + gap);          // Inner wheel Outer Linkbot
+    C4 = (2*M_PI) * (r + 2*trackwidth + gap);       // Circumference of outermost wheel of outer linkbot
+
+    degreesI = C1/degreeConversion;                 // Convert to degrees
+    degreesO = C2/degreeConversion;
+    degreesI2 = C3/degreeConversion;
+    degreesO2 = C4/degreeConversion;
+
+    // Equations below utilize multiple speed ratios (3 Curve Theorems in play)
+    speed2 = (degreesO * speed1) / degreesI;        // speed1/speed2 = degreesI/degreesO 
+    speed3 = (degreesI2 * speed2) / degreesO;       // speed2/speed3 = degreesO/degreesI2
+    speed4 = (degreesO2 * speed3) / degreesI2;      // speed3/speed4 = degreesI2/degreesO2
+    maxSpeed = 240 * (speed1/speed4);               // Calculate max possible speed for innermost wheel
+
+    /* When inputting speed1, the above calculation may set speed2 to above 240, which is not permitted. 
+       Therefore, a while loop forces the user to enter a lower number. */
+    while (speed4 > 240) {
+        printf("WARNING: At %lf degrees/sec, the speed of joint3 is %lf degrees/sec, above the limit of 240 degrees/sec.\n", speed1, speed4);
+        printf("Please enter a speed lower than %lf degrees/sec:\n", maxSpeed);
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;    // Equation: degreesI/speed1 = degreesO/speed2
+        speed3 = (degreesI2 * speed2) / degreesO;
+        speed4 = (degreesO2 * speed3) / degreesI2;
+    
+        maxSpeed = 240 * (speed1/speed4);           
+        /* Above statement is derived from the ratio of speed 1 to speed 4 equaling that of
+           the max of the innermost wheel to 240. speed1/speed4 = maxSpeed/240 */
+    }
+
+    printf("\nSpeed1: %lf\n", speed1);  // For human reference
+    printf("Speed2: %lf\n", speed2);
+    printf("Speed3: %lf\n", speed3);
+    printf("Speed4: %lf\n", speed4);
+
+    robot1.setJointSpeeds(speed2, NaN, speed1);
+    robot2.setJointSpeeds(speed4, NaN, speed3);
+    robot1.moveNB(degreesO, NaN, -degreesI);       // Use ratio to find degrees so that both will stop at the same time
+    robot2.move(degreesO2, NaN, -degreesI2);
+    return 0;
+}
+
+int quarterCircleLeft(CLinkbotI &robot, double r, double speed1) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    
+    robot.setJointSpeeds(speed1, NaN, speed2);
+    robot.move(degreesI/4, NaN, -degreesO/4);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+int quarterCircleRight(CLinkbotI &robot, double r, double speed1) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    
+    robot.setJointSpeeds(speed2, NaN, speed1);
+    robot.move(degreesO/4, NaN, -degreesI/4);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+int degreeCircleLeft(CLinkbotI &robot, double r, double speed1, double d) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    double dist = 360/d;
+    robot.setJointSpeeds(speed2, NaN, speed1);
+    robot.move(degreesO/dist, NaN, -degreesI/dist);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+int degreeCircleRight(CLinkbotI &robot, double r, double speed1, double d) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    double dist = 360/d;
+    robot.setJointSpeeds(speed2, NaN, speed1);
+    robot.move(degreesO/dist, NaN, -degreesI/dist);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+int degreeCircleLeftNB(CLinkbotI &robot, double r, double speed1, double d) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    double dist = 360/d;
+    robot.setJointSpeeds(speed2, NaN, speed1);
+    robot.moveNB(degreesO/dist, NaN, -degreesI/dist);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+int degreeCircleRightNB(CLinkbotI &robot, double r, double speed1, double d) {
+    double radius = 1.75;
+    double trackwidth = 3.69;
+    double C1, C2;            // Of circle the robot will be driving in
+    double degreesI, degreesO;
+    double speed2;
+    double degreeConversion = 0.0305; 
+
+// Objective: Find ratio of wheel speeds based on circumference
+
+    C1 = (2*M_PI) * r;                  // Circumference of inner wheel in inches
+    C2 = (2*M_PI) * (r + trackwidth);   // Circumference of outer wheel in inches
+    degreesI = C1/degreeConversion;     // Convert to degrees
+    degreesO = C2/degreeConversion;
+
+    speed2 = (degreesO * speed1) / degreesI;
+    
+    while (speed2 > 240) {
+        printf("At %lf, the speed of joint3 is %lf, beyond the limit of 240 degrees/sec.\n", speed1, speed2);
+        printf("Please enter a lower number:\n");
+        scanf("%lf", &speed1);
+        speed2 = (degreesO * speed1) / degreesI;        // Equation: degreesI/speed1 = degreesO/speed2
+    }
+    double dist = 360/d;
+    robot.setJointSpeeds(speed2, NaN, speed1);
+    robot.moveNB(degreesO/dist, NaN, -degreesI/dist);       // Use ratio to find degrees so that both will stop at the same time
+    return 0;
+}
+
+
+
